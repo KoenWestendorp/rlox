@@ -21,6 +21,10 @@ impl Interpreter {
             Expr::Literal { value } => Ok(value),
             // TODO: I don't know whether this is right but we'll see.
             Expr::Variable { name } => self.environment.get(name).cloned(),
+            Expr::Assign { name, value } => {
+                let value = self.evaluate(*value)?;
+                self.environment.assign(name, value)
+            }
             Expr::Unary { operator, right } => {
                 let right = self.evaluate(*right)?;
                 match operator.token_type() {

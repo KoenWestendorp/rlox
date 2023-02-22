@@ -25,7 +25,9 @@ use crate::{
 /// exprStmt       → expression ";" ;
 /// printStmt      → "print" expression ";" ;
 ///
-/// expression     → equality ;
+/// expression     → assignment ;
+/// assignment     → IDENTIFIER "=" assignment
+///                | equality ;
 /// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 /// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 /// term           → factor ( ( "-" | "+" ) factor )* ;
@@ -49,7 +51,7 @@ impl Parser {
 
     /// expression     → equality ;
     fn expression(&mut self) -> Result<Expr, LoxError> {
-        self.equality()
+        self.assignment()
     }
 
     /// declaration    → varDecl
@@ -88,6 +90,31 @@ impl Parser {
         })
     }
 
+    /// assignment     → IDENTIFIER "=" assignment
+    ///                | equality ;
+    fn assignment(&mut self) -> Result<Expr, LoxError> {
+        let expr = self.equality()?;
+
+        if self.match_token_type(Equal) {
+            let equals = self.previous().clone();
+            let value = self.assignment()?;
+
+            if let Expr::Variable { name } = expr {
+                return Ok(Expr::Assign {
+                    name,
+                    value: Box::new(value),
+                });
+            }
+
+            return Err(LoxError::from_token(
+                equals,
+                "Invalid assignment target.".to_string(),
+            ));
+        }
+
+        Ok(expr)
+    }
+
     /// printStmt      → "print" expression ";" ;
     fn print_statement(&mut self) -> Result<Stmt, LoxError> {
         let value = self.expression()?;
@@ -98,6 +125,7 @@ impl Parser {
         })
     }
 
+    /// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
     fn var_declaration(&mut self) -> Result<Stmt, LoxError> {
         let name = self
             .consume(Identifier, "Expect variable name.".to_string())?

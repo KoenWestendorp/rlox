@@ -18,6 +18,10 @@ pub(crate) enum Expr {
     Variable {
         name: Token,
     },
+    Assign {
+        name: Token,
+        value: WrappedExpr,
+    },
     Unary {
         operator: Token,
         right: WrappedExpr,
@@ -37,6 +41,7 @@ impl Display for Expr {
         match self {
             Expr::Literal { value } => write!(f, "{value}"),
             Expr::Variable { name } => write!(f, "{name}"),
+            Expr::Assign { name, value } => write!(f, "{name} = {value}"),
             Expr::Unary { operator, right } => write!(f, "({} {right})", operator.lexeme()),
             Expr::Binary {
                 left,

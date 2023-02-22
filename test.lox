@@ -3,6 +3,14 @@ print "orchid";
 print 0 == 1;
 print 243209.038094 / 324.023 * 3244  + 234324 - 234809809384 + 234324423 / 32432;
 
-// We want to be able to do this...
+// We can do this now!
 var beverage = "espresso";
 print beverage;
+
+// And this :)
+var desire = "I want to touch you with a "
+var idea = " of forgiveness"
+var thing = "flower";
+print thing + idea;
+var thing = "feather";
+print thing + idea;

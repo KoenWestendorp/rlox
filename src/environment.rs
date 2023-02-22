@@ -29,4 +29,17 @@ impl Environment {
             format!("Undefined variable '{lexeme}'."),
         ))
     }
+
+    pub(crate) fn assign(&mut self, name: Token, value: Literal) -> Result<Literal, LoxError> {
+        let lexeme = name.lexeme().to_owned();
+        if self.values.contains_key(&lexeme) {
+            self.values.insert(lexeme, value.clone());
+            return Ok(value);
+        }
+
+        Err(LoxError::from_token(
+            name,
+            format!("Undefined variable '{lexeme}'."),
+        ))
+    }
 }
