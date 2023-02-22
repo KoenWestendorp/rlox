@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>token</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+</style>
+  <style type="text/css"></style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<p>use std::fmt::Display;</p>
+<p>use crate::LoxError;</p>
+<p>#[derive(Debug, Clone)] pub struct Token { token_type: TokenType,
+lexeme: String, literal: Option<Literal>, line: usize, }</p>
+<p>impl Token { pub fn new( token_type: TokenType, lexeme: String,
+literal: Option<Literal>, line: usize, ) -&gt; Self { Self { token_type,
+lexeme, literal, line, } }</p>
+<pre><code>pub fn token_type(&amp;self) -&gt; TokenType {
+    self.token_type
+}
+
+pub fn lexeme(&amp;self) -&gt; &amp;str {
+    self.lexeme.as_ref()
+}
+
+pub fn literal(&amp;self) -&gt; Option&lt;Literal&gt; {
+    self.literal.clone()
+}
+
+pub fn line(&amp;self) -&gt; usize {
+    self.line
+}</code></pre>
+<p>}</p>
+<p>impl Display for Token { fn fmt(&amp;self, f: &amp;mut
+std::fmt::Formatter&lt;’_&gt;) -&gt; std::fmt::Result { let Self {
+token_type, lexeme, .. } = self; match &amp;self.literal { None =&gt;
+write!(f, “{token_type:?} {lexeme}”), Some(literal) =&gt; write!(f,
+“{token_type:?} {lexeme} {literal}”), } } }</p>
+<p>#[derive(Debug, Clone, PartialEq)] pub enum Literal {
+Identifier(String), String(String), Number(f64), Nil, Bool(bool), }</p>
+<p>impl Literal { fn identifier(&amp;self) -&gt;
+Option&lt;&amp;String&gt; { match self { Literal::Identifier(s) =&gt;
+Some(s), _ =&gt; None, } }</p>
+<pre><code>pub(crate) fn string(&amp;self) -&gt; Option&lt;&amp;String&gt; {
+    match self {
+        Literal::String(s) =&gt; Some(s),
+        _ =&gt; None,
+    }
+}
+
+pub(crate) fn number(&amp;self) -&gt; Option&lt;f64&gt; {
+    match self {
+        Literal::Number(n) =&gt; Some(*n),
+        _ =&gt; None,
+    }
+}
+
+#[must_use]
+pub(crate) fn is_nil(&amp;self) -&gt; bool {
+    match self {
+        Literal::Nil =&gt; true,
+        _ =&gt; false,
+    }
+}
+
+pub(crate) fn bool(&amp;self) -&gt; Option&lt;bool&gt; {
+    match self {
+        Literal::Bool(b) =&gt; Some(*b),
+        _ =&gt; None,
+    }
+}
+
+///
+///
+/// In Lox, `false` and `nil` are falsey.
+/// Everything else is truthy.
+fn is_truthy(&amp;self) -&gt; bool {
+    match self {
+        // TODO: Profile these two options.
+        Literal::Nil =&gt; false,
+        Literal::Bool(b) =&gt; *b,
+        // vs
+        // Literal::Bool(false) | Literal::Nil =&gt; false,
+        // (curiosity bikeshed)
+        _ =&gt; true,
+    }
+}
+
+pub(crate) fn operate_identifier(&amp;self, f: impl Fn(String) -&gt; String) -&gt; Option&lt;Self&gt; {
+    self.identifier().map(|s| Self::String(f(s.clone())))
+}
+
+pub(crate) fn operate_string(&amp;self, f: impl Fn(String) -&gt; String) -&gt; Option&lt;Self&gt; {
+    self.string().map(|s| Self::String(f(s.clone())))
+}
+
+pub(crate) fn operate_number(&amp;self, f: impl Fn(f64) -&gt; f64) -&gt; Option&lt;Self&gt; {
+    self.number().map(|n| Self::Number(f(n)))
+}
+
+pub(crate) fn operate_bool(&amp;self, f: impl Fn(bool) -&gt; bool) -&gt; Option&lt;Self&gt; {
+    self.bool().map(|b| Self::Bool(f(b)))
+}
+
+pub(crate) fn operate_truthy(&amp;self, f: impl Fn(bool) -&gt; bool) -&gt; Self {
+    Self::Bool(f(self.is_truthy()))
+}
+
+pub(crate) fn operate_number_binary(
+    &amp;self,
+    right: Self,
+    f: impl Fn(f64, f64) -&gt; f64,
+) -&gt; Option&lt;Self&gt; {
+    let left = self;
+    let right = right.number()?;
+    left.operate_number(|n| f(n, right))
+}
+
+pub(crate) fn binary_cmp&lt;O: PartialOrd&gt;(
+    &amp;self,
+    right: Literal,
+    ord: impl Fn(O, O) -&gt; bool,
+) -&gt; Option&lt;Literal&gt; {
+    let left = self;
+    use Literal::*;
+    match (left, right) {
+        (Identifier(_), _) | (_, Identifier(_)) =&gt; None,
+        (Number(left), Number(right)) =&gt; Some(Bool(ord(left, right))),
+        _ =&gt; None,
+    }
+}</code></pre>
+<p>}</p>
+<p>impl Display for Literal { fn fmt(&amp;self, f: &amp;mut
+std::fmt::Formatter&lt;’_&gt;) -&gt; std::fmt::Result { write!(f,
+“{self:?}”) } }</p>
+<p>#[derive(Debug, Clone, Copy, PartialEq, Eq)] pub enum TokenType { //
+Single-character tokens. LeftParen, RightParen, LeftBrace, RightBrace,
+Dot, Comma, Minus, Plus, Semicolon, Slash, Star,</p>
+<pre><code>// One or two character tokens.
+Bang,
+BangEqual,
+Equal,
+EqualEqual,
+Greater,
+GreaterEqual,
+Less,
+LessEqual,
+
+// Literals.
+Identifier,
+String,
+Number,
+
+// Keywords.
+And,
+Class,
+Else,
+False,
+Fun,
+For,
+If,
+Nil,
+Or,
+Print,
+Return,
+This,
+True,
+Var,
+While,
+
+Eof,</code></pre>
+<p>}</p>
+</body>
+</html>
