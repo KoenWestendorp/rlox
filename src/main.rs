@@ -1,4 +1,5 @@
 mod ast;
+mod environment;
 mod interpreter;
 mod parser;
 mod scanner;
@@ -87,7 +88,8 @@ fn run(source: &str) -> Result<String, LoxError> {
     let parsed = parser.parse()?;
     // println!("{parsed:?}");
 
-    let evaluated = Interpreter::interpret(parsed)?;
+    let mut interpreter = Interpreter::new();
+    let evaluated = interpreter.interpret(parsed)?;
 
     Ok(evaluated)
 }

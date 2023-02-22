@@ -12,10 +12,15 @@ use crate::{
 /// Implements a parser according to the following expression grammar:
 ///
 /// ```
-/// program        → statement* EOF ;
+/// program        → declaration* EOF ;
+///
+/// declaration    → varDecl
+///                | statement ;
 ///
 /// statement      → exprStmt
 ///                | printStmt ;
+///
+/// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 ///
 /// exprStmt       → expression ";" ;
 /// printStmt      → "print" expression ";" ;
@@ -27,8 +32,10 @@ use crate::{
 /// factor         → unary ( ( "/" | "*" ) unary )* ;
 /// unary          → ( "!" | "-" ) unary
 ///                | primary ;
-/// primary        → NUMBER | STRING | "true" | "false" | "nil"
-///                | "(" expression ")" ;
+/// primary        → "true" | "false" | "nil"
+///                | NUMBER | STRING
+///                | "(" expression ")"
+///                | IDENTIFIER ;
 /// ```
 pub(crate) struct Parser {
     tokens: Vec<Token>,
@@ -43,6 +50,22 @@ impl Parser {
     /// expression     → equality ;
     fn expression(&mut self) -> Result<Expr, LoxError> {
         self.equality()
+    }
+
+    /// declaration    → varDecl
+    ///                | statement ;
+    fn declaration(&mut self) -> Result<Stmt, LoxError> {
+        let res = if self.match_token_type(Var) {
+            self.var_declaration()
+        } else {
+            self.statement()
+        };
+
+        if res.is_err() {
+            self.synchronize()
+        }
+
+        res
     }
 
     /// statement      → exprStmt
@@ -73,6 +96,25 @@ impl Parser {
         Ok(Stmt::Print {
             expression: Box::new(value),
         })
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, LoxError> {
+        let name = self
+            .consume(Identifier, "Expect variable name.".to_string())?
+            .clone();
+
+        let initializer = if self.match_token_type(Equal) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(
+            Semicolon,
+            "Expect ';' after variable declaration.".to_string(),
+        );
+
+        Ok(Stmt::Var { name, initializer })
     }
 
     /// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -158,19 +200,23 @@ impl Parser {
         self.primary()
     }
 
-    /// primary        → NUMBER | STRING | "true" | "false" | "nil"
-    ///                | "(" expression ")" ;
+    /// primary        → "true" | "false" | "nil"
+    ///                | NUMBER | STRING
+    ///                | "(" expression ")"
+    ///                | IDENTIFIER ;
     fn primary(&mut self) -> Result<Expr, LoxError> {
         if self.match_token_type(False) {
             return Ok(Expr::Literal {
                 value: Literal::Bool(false),
             });
         }
+
         if self.match_token_type(True) {
             return Ok(Expr::Literal {
                 value: Literal::Bool(true),
             });
         }
+
         if self.match_token_type(Nil) {
             return Ok(Expr::Literal {
                 value: Literal::Nil,
@@ -182,6 +228,12 @@ impl Parser {
                 // I believe the use of previous after we have checked it using
                 // match_token_type allows us to safely unwrap here.
                 value: self.previous().literal().unwrap(),
+            });
+        }
+
+        if self.match_token_type(Identifier) {
+            return Ok(Expr::Variable {
+                name: self.previous().clone(),
             });
         }
 
@@ -278,7 +330,7 @@ impl Parser {
     pub(crate) fn parse(mut self) -> Result<Vec<Stmt>, LoxError> {
         let mut statements = Vec::new();
         while !self.is_at_end() {
-            statements.push(self.statement()?)
+            statements.push(self.declaration()?)
         }
 
         Ok(statements)

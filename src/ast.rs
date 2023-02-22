@@ -15,6 +15,9 @@ pub(crate) enum Expr {
     Literal {
         value: Literal,
     },
+    Variable {
+        name: Token,
+    },
     Unary {
         operator: Token,
         right: WrappedExpr,
@@ -33,6 +36,7 @@ impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expr::Literal { value } => write!(f, "{value}"),
+            Expr::Variable { name } => write!(f, "{name}"),
             Expr::Unary { operator, right } => write!(f, "({} {right})", operator.lexeme()),
             Expr::Binary {
                 left,
@@ -46,8 +50,16 @@ impl Display for Expr {
 
 #[derive(Debug)]
 pub(crate) enum Stmt {
-    Expression { expression: WrappedExpr },
-    Print { expression: WrappedExpr },
+    Expression {
+        expression: WrappedExpr,
+    },
+    Print {
+        expression: WrappedExpr,
+    },
+    Var {
+        name: Token,
+        initializer: Option<Expr>,
+    },
 }
 
 impl Display for Stmt {
@@ -55,6 +67,14 @@ impl Display for Stmt {
         match self {
             Stmt::Expression { expression } => write!(f, "{expression}"),
             Stmt::Print { expression } => write!(f, "print {expression}"),
+            Stmt::Var {
+                name,
+                initializer: Some(init),
+            } => write!(f, "var {name} = {init}"),
+            Stmt::Var {
+                name,
+                initializer: None,
+            } => write!(f, "var {name}"),
         }
     }
 }

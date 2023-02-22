@@ -1,19 +1,28 @@
-use std::cmp::Ordering;
-
 use crate::{
     ast::{Expr, Stmt},
+    environment::Environment,
     token::{Literal, TokenType},
     LoxError,
 };
 
-pub(crate) struct Interpreter;
+pub(crate) struct Interpreter {
+    environment: Environment,
+}
 
 impl Interpreter {
-    fn evaluate(expr: Expr) -> Result<Literal, LoxError> {
+    pub(crate) fn new() -> Self {
+        Self {
+            environment: Environment::new(),
+        }
+    }
+
+    fn evaluate(&mut self, expr: Expr) -> Result<Literal, LoxError> {
         match expr {
             Expr::Literal { value } => Ok(value),
+            // TODO: I don't know whether this is right but we'll see.
+            Expr::Variable { name } => self.environment.get(name).cloned(),
             Expr::Unary { operator, right } => {
-                let right = Self::evaluate(*right)?;
+                let right = self.evaluate(*right)?;
                 match operator.token_type() {
                     TokenType::Bang => Ok(right.operate_truthy(|n| !n)),
                     TokenType::Minus => right
@@ -30,8 +39,8 @@ impl Interpreter {
                 // NOTE: The order of the left and right evaluations is significant. This
                 // determines the order in which binary expressions are evaluated. In our case:
                 // left-to-right.
-                let left = Self::evaluate(*left)?;
-                let right = Self::evaluate(*right)?;
+                let left = self.evaluate(*left)?;
+                let right = self.evaluate(*right)?;
                 match operator.token_type() {
                     TokenType::Minus => left
                         .operate_number_binary(right, |l, r| l - r)
@@ -105,26 +114,35 @@ impl Interpreter {
                     _ => todo!(),
                 }
             }
-            Expr::Grouping { expression } => Self::evaluate(*expression),
+            Expr::Grouping { expression } => self.evaluate(*expression),
         }
     }
 
-    pub(crate) fn interpret(statements: Vec<Stmt>) -> Result<String, LoxError> {
+    fn execute(&mut self, statement: Stmt) -> Result<Literal, LoxError> {
+        match statement {
+            Stmt::Expression { expression } => self.evaluate(*expression),
+            Stmt::Print { expression } => {
+                println!("{}", self.evaluate(*expression)?);
+                Ok(Literal::Nil)
+            }
+            Stmt::Var { name, initializer } => {
+                let value = if let Some(init) = initializer {
+                    self.evaluate(init)?
+                } else {
+                    Literal::Nil
+                };
+                self.environment.define(name.lexeme().to_string(), value);
+                Ok(Literal::Nil)
+            }
+        }
+    }
+
+    pub(crate) fn interpret(&mut self, statements: Vec<Stmt>) -> Result<String, LoxError> {
         for statement in statements {
-            Self::execute(statement)?;
+            self.execute(statement)?;
         }
 
         // TODO this is wrong of course. (temp)
         Ok(String::new())
-    }
-
-    fn execute(statement: Stmt) -> Result<Literal, LoxError> {
-        match statement {
-            Stmt::Expression { expression } => Self::evaluate(*expression),
-            Stmt::Print { expression } => {
-                println!("{}", Self::evaluate(*expression)?);
-                Ok(Literal::Nil)
-            }
-        }
     }
 }
