@@ -77,7 +77,7 @@ impl Display for LoxError {
     }
 }
 
-fn run(source: &str) -> Result<(), LoxError> {
+fn run(source: &str) -> Result<String, LoxError> {
     let scanner = Scanner::new(source);
     let tokens = scanner.scan_tokens()?;
 
@@ -85,12 +85,11 @@ fn run(source: &str) -> Result<(), LoxError> {
 
     let parser = Parser::new(tokens);
     let parsed = parser.parse()?;
-    println!("{parsed}");
+    // println!("{parsed:?}");
 
     let evaluated = Interpreter::interpret(parsed)?;
-    println!("{evaluated}");
 
-    Ok(())
+    Ok(evaluated)
 }
 
 fn run_file(path: &String) -> Result<(), Box<dyn Error>> {
@@ -112,7 +111,7 @@ fn run_prompt() -> io::Result<()> {
             break;
         }
         match run(&line) {
-            Ok(_) => {}
+            Ok(output) => writeln!(stdout, "{output}")?,
             Err(e) => eprintln!("{e}"),
         }
         line.clear();

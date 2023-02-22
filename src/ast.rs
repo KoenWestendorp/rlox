@@ -10,6 +10,7 @@ trait Nary {
 
 type WrappedExpr = Box<Expr>;
 
+#[derive(Debug)]
 pub(crate) enum Expr {
     Literal {
         value: Literal,
@@ -39,6 +40,21 @@ impl Display for Expr {
                 right,
             } => write!(f, "({left} {} {right})", operator.lexeme()),
             Expr::Grouping { expression } => write!(f, "{expression}"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum Stmt {
+    Expression { expression: WrappedExpr },
+    Print { expression: WrappedExpr },
+}
+
+impl Display for Stmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Stmt::Expression { expression } => write!(f, "{expression}"),
+            Stmt::Print { expression } => write!(f, "print {expression}"),
         }
     }
 }

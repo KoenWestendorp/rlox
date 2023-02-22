@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::{
-    ast::Expr,
+    ast::{Expr, Stmt},
     token::{Literal, TokenType},
     LoxError,
 };
@@ -109,8 +109,22 @@ impl Interpreter {
         }
     }
 
-    pub(crate) fn interpret(expression: Expr) -> Result<String, LoxError> {
-        let value = Self::evaluate(expression)?;
-        Ok(value.to_string())
+    pub(crate) fn interpret(statements: Vec<Stmt>) -> Result<String, LoxError> {
+        for statement in statements {
+            Self::execute(statement)?;
+        }
+
+        // TODO this is wrong of course. (temp)
+        Ok(String::new())
+    }
+
+    fn execute(statement: Stmt) -> Result<Literal, LoxError> {
+        match statement {
+            Stmt::Expression { expression } => Self::evaluate(*expression),
+            Stmt::Print { expression } => {
+                println!("{}", Self::evaluate(*expression)?);
+                Ok(Literal::Nil)
+            }
+        }
     }
 }

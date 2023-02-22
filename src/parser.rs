@@ -1,5 +1,5 @@
 use crate::{
-    ast::Expr,
+    ast::{Expr, Stmt},
     token::{
         Literal, Token,
         TokenType::{self, *},
@@ -12,6 +12,14 @@ use crate::{
 /// Implements a parser according to the following expression grammar:
 ///
 /// ```
+/// program        → statement* EOF ;
+///
+/// statement      → exprStmt
+///                | printStmt ;
+///
+/// exprStmt       → expression ";" ;
+/// printStmt      → "print" expression ";" ;
+///
 /// expression     → equality ;
 /// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 /// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -35,6 +43,36 @@ impl Parser {
     /// expression     → equality ;
     fn expression(&mut self) -> Result<Expr, LoxError> {
         self.equality()
+    }
+
+    /// statement      → exprStmt
+    ///                | printStmt ;
+    fn statement(&mut self) -> Result<Stmt, LoxError> {
+        if self.match_token_type(Print) {
+            return self.print_statement();
+        }
+
+        self.expression_statement()
+    }
+
+    /// exprStmt       → expression ";" ;
+    fn expression_statement(&mut self) -> Result<Stmt, LoxError> {
+        let value = self.expression()?;
+        self.consume(Semicolon, "Expect ';' after expression.".to_string())?;
+
+        Ok(Stmt::Expression {
+            expression: Box::new(value),
+        })
+    }
+
+    /// printStmt      → "print" expression ";" ;
+    fn print_statement(&mut self) -> Result<Stmt, LoxError> {
+        let value = self.expression()?;
+        self.consume(Semicolon, "Expect ';' after value.".to_string())?;
+
+        Ok(Stmt::Print {
+            expression: Box::new(value),
+        })
     }
 
     /// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -209,10 +247,10 @@ impl Parser {
 
     fn consume(
         &mut self,
-        token_type: TokenType,
+        until: TokenType,
         message: std::string::String,
     ) -> Result<&Token, LoxError> {
-        if self.check(token_type) {
+        if self.check(until) {
             return Ok(self.advance());
         }
 
@@ -237,7 +275,12 @@ impl Parser {
         }
     }
 
-    pub(crate) fn parse(mut self) -> Result<Expr, LoxError> {
-        self.expression()
+    pub(crate) fn parse(mut self) -> Result<Vec<Stmt>, LoxError> {
+        let mut statements = Vec::new();
+        while !self.is_at_end() {
+            statements.push(self.statement()?)
+        }
+
+        Ok(statements)
     }
 }
