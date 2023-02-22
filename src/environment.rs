@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     token::{Literal, Token},
@@ -7,29 +7,52 @@ use crate::{
 
 type Object = Literal;
 
+#[derive(Debug, Clone)]
 pub(crate) struct Environment {
+    /// Reference to the [`Environment`] that encloses this one.
+    enclosing: Option<Rc<Self>>,
     values: HashMap<String, Object>,
 }
 
 impl Environment {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(enclosing: Option<Rc<Environment>>) -> Self {
         Self {
             values: HashMap::new(),
+            enclosing,
         }
     }
+}
 
+impl Environment {
     pub(crate) fn define(&mut self, name: String, value: Object) {
         self.values.insert(name, value);
     }
 
+    /// Get the Literal value bound to a variable.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the variable is not found.
     pub(crate) fn get(&self, name: Token) -> Result<&Object, LoxError> {
         let lexeme = name.lexeme().to_owned();
-        self.values.get(&lexeme).ok_or(LoxError::from_token(
+
+        match &self.enclosing {
+            // If there is no enclosing environment, get the variable name from this environment.
+            None => self.values.get(&lexeme),
+            // Otherwise get it from the enclosing environment.
+            Some(enclosing) => return enclosing.get(name),
+        }
+        .ok_or(LoxError::from_token(
             name,
             format!("Undefined variable '{lexeme}'."),
         ))
     }
 
+    /// Assign another Literal value to a variable.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the variable is not found.
     pub(crate) fn assign(&mut self, name: Token, value: Literal) -> Result<Literal, LoxError> {
         let lexeme = name.lexeme().to_owned();
         if self.values.contains_key(&lexeme) {
@@ -42,4 +65,8 @@ impl Environment {
             format!("Undefined variable '{lexeme}'."),
         ))
     }
+
+    // pub(crate) fn enclosing(&self) -> Option<Rc<Environment>> {
+    //     self.enclosing.map(|ref env| Rc::clone(env))
+    // }
 }

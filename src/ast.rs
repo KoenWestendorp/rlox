@@ -55,6 +55,9 @@ impl Display for Expr {
 
 #[derive(Debug)]
 pub(crate) enum Stmt {
+    Block {
+        statements: Vec<Stmt>,
+    },
     Expression {
         expression: WrappedExpr,
     },
@@ -70,6 +73,15 @@ pub(crate) enum Stmt {
 impl Display for Stmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Stmt::Block { statements } => write!(
+                f,
+                "{{ {} }}",
+                statements
+                    .iter()
+                    .map(|stmt| stmt.to_string())
+                    .collect::<Vec<_>>()
+                    .join("  ")
+            ),
             Stmt::Expression { expression } => write!(f, "{expression}"),
             Stmt::Print { expression } => write!(f, "print {expression}"),
             Stmt::Var {

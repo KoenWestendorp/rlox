@@ -153,7 +153,13 @@ impl Literal {
 
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        match self {
+            Literal::Identifier(i) => write!(f, "<{i}>"),
+            Literal::String(s) => write!(f, "{s}"),
+            Literal::Number(n) => write!(f, "{n}"),
+            Literal::Nil => write!(f, "nil"),
+            Literal::Bool(b) => write!(f, "{b}"),
+        }
     }
 }
 

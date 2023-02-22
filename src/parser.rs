@@ -18,7 +18,10 @@ use crate::{
 ///                | statement ;
 ///
 /// statement      → exprStmt
-///                | printStmt ;
+///                | printStmt
+///                | block ;
+///
+/// block          → "{" declaration* "}" ;
 ///
 /// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 ///
@@ -71,10 +74,16 @@ impl Parser {
     }
 
     /// statement      → exprStmt
-    ///                | printStmt ;
+    ///                | printStmt
+    ///                | block ;
     fn statement(&mut self) -> Result<Stmt, LoxError> {
         if self.match_token_type(Print) {
             return self.print_statement();
+        }
+        if self.match_token_type(LeftBrace) {
+            return Ok(Stmt::Block {
+                statements: self.block()?,
+            });
         }
 
         self.expression_statement()
@@ -88,6 +97,18 @@ impl Parser {
         Ok(Stmt::Expression {
             expression: Box::new(value),
         })
+    }
+
+    /// block          → "{" declaration* "}" ;
+    fn block(&mut self) -> Result<Vec<Stmt>, LoxError> {
+        let mut statements = Vec::new();
+
+        while !self.check(RightBrace) && !self.is_at_end() {
+            statements.push(self.declaration()?);
+        }
+
+        self.consume(RightBrace, "Expect '}' after block.".to_string())?;
+        Ok(statements)
     }
 
     /// assignment     → IDENTIFIER "=" assignment

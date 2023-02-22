@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     ast::{Expr, Stmt},
     environment::Environment,
@@ -12,7 +14,7 @@ pub(crate) struct Interpreter {
 impl Interpreter {
     pub(crate) fn new() -> Self {
         Self {
-            environment: Environment::new(),
+            environment: Environment::new(None),
         }
     }
 
@@ -124,6 +126,10 @@ impl Interpreter {
 
     fn execute(&mut self, statement: Stmt) -> Result<Literal, LoxError> {
         match statement {
+            Stmt::Block { statements } => {
+                self.execute_block(statements, self.new_env())?;
+                Ok(Literal::Nil)
+            }
             Stmt::Expression { expression } => self.evaluate(*expression),
             Stmt::Print { expression } => {
                 println!("{}", self.evaluate(*expression)?);
@@ -141,6 +147,13 @@ impl Interpreter {
         }
     }
 
+    fn execute_block(&mut self, statements: Vec<Stmt>, env: Environment) -> Result<(), LoxError> {
+        for statement in statements {
+            self.execute_with_environment(statement, env)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn interpret(&mut self, statements: Vec<Stmt>) -> Result<String, LoxError> {
         for statement in statements {
             self.execute(statement)?;
@@ -148,5 +161,9 @@ impl Interpreter {
 
         // TODO this is wrong of course. (temp)
         Ok(String::new())
+    }
+
+    fn new_env(&self) -> Environment {
+        self.environment
     }
 }
