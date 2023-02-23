@@ -10,7 +10,7 @@ trait Nary {
 
 type WrappedExpr = Box<Expr>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Expr {
     Literal {
         value: Literal,
@@ -72,13 +72,13 @@ impl Display for Expr {
 
 type WrappedStmt = Box<Stmt>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Stmt {
     Block {
         statements: Vec<Stmt>,
     },
     Expression {
-        expression: WrappedExpr,
+        expression: Expr,
     },
     If {
         condition: Expr,
@@ -86,11 +86,15 @@ pub(crate) enum Stmt {
         else_branch: Option<WrappedStmt>,
     },
     Print {
-        expression: WrappedExpr,
+        expression: Expr,
     },
     Var {
         name: Token,
         initializer: Option<Expr>,
+    },
+    While {
+        condition: Expr,
+        body: WrappedStmt,
     },
 }
 
@@ -127,6 +131,7 @@ impl Display for Stmt {
                 name,
                 initializer: None,
             } => write!(f, "var {name}"),
+            Stmt::While { condition, body } => write!(f, "while ({condition}) {body}"),
         }
     }
 }

@@ -1,4 +1,7 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{
+    collections::HashMap,
+    rc::{Rc, Weak},
+};
 
 use crate::{
     token::{Literal, Token},
@@ -9,12 +12,21 @@ type Object = Literal;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Environment {
+    pub(crate) parent: Option<Weak<Self>>,
     values: HashMap<String, Object>,
 }
 
 impl Environment {
     pub(crate) fn new() -> Self {
         Self {
+            parent: None,
+            values: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn from_parent(parent: &Rc<Self>) -> Self {
+        Self {
+            parent: Some(Rc::downgrade(parent)),
             values: HashMap::new(),
         }
     }
@@ -30,24 +42,33 @@ impl Environment {
     /// # Errors
     ///
     /// This function will return an error if the variable is not found.
-    pub(crate) fn get(&self, name: Token) -> Result<&Object, LoxError> {
+    pub(crate) fn get(&self, name: &Token) -> Result<Object, LoxError> {
         // let lexeme = name.lexeme().to_owned();
         //
-        // match &self.enclosing {
+        // match self.parent {
         //     // If there is no enclosing environment, get the variable name from this environment.
         //     None => self.values.get(&lexeme),
         //     // Otherwise get it from the enclosing environment.
-        //     Some(enclosing) => return enclosing.get(name),
+        //     Some(ref parent) => {
+        //         if let Some(parent) = parent.upgrade() {
+        //             return parent.get(name);
+        //         } else {
+        //             self.values.get(&lexeme)
+        //         }
+        //     }
         // }
-        // .ok_or(LoxError::from_token(
-        //     name,
-        //     format!("Undefined variable '{lexeme}'."),
-        // ))
+        // .ok_or_else(|| {
+        //     LoxError::from_token(name.clone(), format!("Undefined variable '{lexeme}'."))
+        // })
+        // .cloned()
         let lexeme = name.lexeme().to_owned();
-        self.values.get(&lexeme).ok_or(LoxError::from_token(
-            name,
-            format!("Undefined variable '{lexeme}'."),
-        ))
+        self.values
+            .get(&lexeme)
+            .ok_or(LoxError::from_token(
+                name.clone(),
+                format!("Undefined variable '{lexeme}'."),
+            ))
+            .cloned()
     }
 
     /// Assign another Literal value to a variable.

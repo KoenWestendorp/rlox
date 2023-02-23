@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::cell::{Cell, UnsafeCell};
 
 use crate::{
     ast::{Expr, Stmt},
@@ -7,6 +7,7 @@ use crate::{
     LoxError,
 };
 
+#[derive(Debug, Clone)]
 pub(crate) struct Interpreter {
     environment: Environment,
 }
@@ -22,7 +23,7 @@ impl Interpreter {
         match expr {
             Expr::Literal { value } => Ok(value),
             // TODO: I don't know whether this is right but we'll see.
-            Expr::Variable { name } => self.environment.get(name).cloned(),
+            Expr::Variable { name } => self.environment.get(&name),
             Expr::Assign { name, value } => {
                 let value = self.evaluate(*value)?;
                 self.environment.assign(name, value)
@@ -162,7 +163,7 @@ impl Interpreter {
                 self.execute_block(statements)?;
                 Ok(Literal::Nil)
             }
-            Stmt::Expression { expression } => self.evaluate(*expression),
+            Stmt::Expression { expression } => self.evaluate(expression),
             Stmt::If {
                 condition,
                 then_branch,
@@ -180,7 +181,7 @@ impl Interpreter {
                 }
             }
             Stmt::Print { expression } => {
-                println!("{}", self.evaluate(*expression)?);
+                println!("{}", self.evaluate(expression)?);
                 Ok(Literal::Nil)
             }
             Stmt::Var { name, initializer } => {
@@ -192,15 +193,20 @@ impl Interpreter {
                 self.environment.define(name.lexeme().to_string(), value);
                 Ok(Literal::Nil)
             }
+            Stmt::While { condition, body } => {
+                // TODO: These clones might actually give us undesirable and incorrect behaviour.
+                while self.evaluate(condition.clone())?.is_truthy() {
+                    self.execute(*body.clone())?;
+                }
+                Ok(Literal::Nil)
+            }
         }
     }
 
     fn execute_block(&mut self, statements: Vec<Stmt>) -> Result<(), LoxError> {
-        let old = self.environment.clone();
         for statement in statements {
             self.execute(statement)?;
         }
-        self.environment = old;
         Ok(())
     }
 

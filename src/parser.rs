@@ -18,9 +18,17 @@ use crate::{
 ///                | statement ;
 ///
 /// statement      → exprStmt
+///                | forStmt
 ///                | ifStmt
 ///                | printStmt
+///                | whileStmt
 ///                | block ;
+///
+/// forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+///                  expression? ";"
+///                  expression? ")" statement ;
+///
+/// whileStmt      → "while" "(" expression ")" statement ;
 ///
 /// ifStmt         → "if" "(" expression ")" statement
 ///                ( "else" statement )? ;
@@ -81,7 +89,9 @@ impl Parser {
     }
 
     /// statement      → exprStmt
+    ///                | ifStmt
     ///                | printStmt
+    ///                | whileStmt
     ///                | block ;
     fn statement(&mut self) -> Result<Stmt, LoxError> {
         if self.match_token_type(If) {
@@ -90,6 +100,9 @@ impl Parser {
         if self.match_token_type(Print) {
             return self.print_statement();
         }
+        if self.match_token_type(While) {
+            return self.while_statement();
+        }
         if self.match_token_type(LeftBrace) {
             return Ok(Stmt::Block {
                 statements: self.block()?,
@@ -97,6 +110,16 @@ impl Parser {
         }
 
         self.expression_statement()
+    }
+
+    /// whileStmt      → "while" "(" expression ")" statement ;
+    fn while_statement(&mut self) -> Result<Stmt, LoxError> {
+        self.consume(LeftParen, "Expect '(' after while.".to_string())?;
+        let condition = self.expression()?;
+        self.consume(RightParen, "Expect ')' after while condition.".to_string())?;
+        let body = Box::new(self.statement()?);
+
+        Ok(Stmt::While { condition, body })
     }
 
     /// ifStmt         → "if" "(" expression ")" statement
@@ -125,9 +148,7 @@ impl Parser {
         let value = self.expression()?;
         self.consume(Semicolon, "Expect ';' after expression.".to_string())?;
 
-        Ok(Stmt::Expression {
-            expression: Box::new(value),
-        })
+        Ok(Stmt::Expression { expression: value })
     }
 
     /// block          → "{" declaration* "}" ;
@@ -208,9 +229,7 @@ impl Parser {
         let value = self.expression()?;
         self.consume(Semicolon, "Expect ';' after value.".to_string())?;
 
-        Ok(Stmt::Print {
-            expression: Box::new(value),
-        })
+        Ok(Stmt::Print { expression: value })
     }
 
     /// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
