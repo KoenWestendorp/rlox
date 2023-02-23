@@ -18,8 +18,12 @@ use crate::{
 ///                | statement ;
 ///
 /// statement      → exprStmt
+///                | ifStmt
 ///                | printStmt
 ///                | block ;
+///
+/// ifStmt         → "if" "(" expression ")" statement
+///                ( "else" statement )? ;
 ///
 /// block          → "{" declaration* "}" ;
 ///
@@ -30,7 +34,10 @@ use crate::{
 ///
 /// expression     → assignment ;
 /// assignment     → IDENTIFIER "=" assignment
-///                | equality ;
+///                | logic_or ;
+/// logic_or       → logic_and ( "or" logic_and )* ;
+/// logic_and      → equality ( "and" equality )* ;
+///
 /// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 /// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 /// term           → factor ( ( "-" | "+" ) factor )* ;
@@ -77,6 +84,9 @@ impl Parser {
     ///                | printStmt
     ///                | block ;
     fn statement(&mut self) -> Result<Stmt, LoxError> {
+        if self.match_token_type(If) {
+            return self.if_statement();
+        }
         if self.match_token_type(Print) {
             return self.print_statement();
         }
@@ -87,6 +97,27 @@ impl Parser {
         }
 
         self.expression_statement()
+    }
+
+    /// ifStmt         → "if" "(" expression ")" statement
+    ///                ( "else" statement )? ;
+    fn if_statement(&mut self) -> Result<Stmt, LoxError> {
+        self.consume(LeftParen, "Expect '(' after if.".to_string())?;
+        let condition = self.expression()?;
+        self.consume(RightParen, "Expect ')' after if condition.".to_string())?;
+
+        let then_branch = Box::new(self.statement()?);
+        let else_branch = if self.match_token_type(Else) {
+            Some(Box::new(self.statement()?))
+        } else {
+            None
+        };
+
+        Ok(Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        })
     }
 
     /// exprStmt       → expression ";" ;
@@ -112,9 +143,9 @@ impl Parser {
     }
 
     /// assignment     → IDENTIFIER "=" assignment
-    ///                | equality ;
+    ///                | logic_or ;
     fn assignment(&mut self) -> Result<Expr, LoxError> {
-        let expr = self.equality()?;
+        let expr = self.logic_or()?;
 
         if self.match_token_type(Equal) {
             let equals = self.previous().clone();
@@ -131,6 +162,42 @@ impl Parser {
                 equals,
                 "Invalid assignment target.".to_string(),
             ));
+        }
+
+        Ok(expr)
+    }
+
+    /// logic_or       → logic_and ( "or" logic_and )* ;
+    fn logic_or(&mut self) -> Result<Expr, LoxError> {
+        let expr = self.logic_and()?;
+
+        if self.match_token_type(Or) {
+            let operator = self.previous().clone();
+            let right = self.logic_and()?;
+            let expr = Expr::Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+            return Ok(expr);
+        }
+
+        Ok(expr)
+    }
+
+    /// logic_and      → equality ( "and" equality )* ;
+    fn logic_and(&mut self) -> Result<Expr, LoxError> {
+        let expr = self.equality()?;
+
+        if self.match_token_type(And) {
+            let operator = self.previous().clone();
+            let right = self.equality()?;
+            let expr = Expr::Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+            return Ok(expr);
         }
 
         Ok(expr)

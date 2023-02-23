@@ -14,7 +14,7 @@ pub(crate) struct Interpreter {
 impl Interpreter {
     pub(crate) fn new() -> Self {
         Self {
-            environment: Environment::new(None),
+            environment: Environment::new(),
         }
     }
 
@@ -26,6 +26,38 @@ impl Interpreter {
             Expr::Assign { name, value } => {
                 let value = self.evaluate(*value)?;
                 self.environment.assign(name, value)
+            }
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                let left = self.evaluate(*left)?;
+
+                // TODO: Try some different arrangements to see whether it makes a
+                // performance impact. I feel there is a really cool optimalisation
+                // hiding here.
+
+                // NOTE: We evaluate the left operand first, and return early if it is truthy
+                // in case of 'or' operator, or falsey in case of 'and' operator.
+                //
+                // This means that this implementation short-circuits on logical operators :)
+                match operator.token_type() {
+                    TokenType::Or => {
+                        if left.is_truthy() {
+                            return Ok(left);
+                        }
+                    }
+                    TokenType::And => {
+                        if !left.is_truthy() {
+                            return Ok(left);
+                        }
+                    }
+
+                    _ => unreachable!(),
+                }
+
+                self.evaluate(*right)
             }
             Expr::Unary { operator, right } => {
                 let right = self.evaluate(*right)?;
@@ -127,10 +159,26 @@ impl Interpreter {
     fn execute(&mut self, statement: Stmt) -> Result<Literal, LoxError> {
         match statement {
             Stmt::Block { statements } => {
-                self.execute_block(statements, self.new_env())?;
+                self.execute_block(statements)?;
                 Ok(Literal::Nil)
             }
             Stmt::Expression { expression } => self.evaluate(*expression),
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                // NOTE: I stray from the book here, because I just really, really like expression
+                // based languages. If, in this implementation, returns the result literal from
+                // the executed branch.
+                if self.evaluate(condition)?.is_truthy() {
+                    self.execute(*then_branch)
+                } else if let Some(else_branch) = else_branch {
+                    self.execute(*else_branch)
+                } else {
+                    Ok(Literal::Nil)
+                }
+            }
             Stmt::Print { expression } => {
                 println!("{}", self.evaluate(*expression)?);
                 Ok(Literal::Nil)
@@ -147,10 +195,12 @@ impl Interpreter {
         }
     }
 
-    fn execute_block(&mut self, statements: Vec<Stmt>, env: Environment) -> Result<(), LoxError> {
+    fn execute_block(&mut self, statements: Vec<Stmt>) -> Result<(), LoxError> {
+        let old = self.environment.clone();
         for statement in statements {
-            self.execute_with_environment(statement, env)?;
+            self.execute(statement)?;
         }
+        self.environment = old;
         Ok(())
     }
 
@@ -161,9 +211,5 @@ impl Interpreter {
 
         // TODO this is wrong of course. (temp)
         Ok(String::new())
-    }
-
-    fn new_env(&self) -> Environment {
-        self.environment
     }
 }

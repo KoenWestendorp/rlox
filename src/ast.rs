@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::token::{Literal, Token};
+use crate::token::{Literal, Token, TokenType};
 
 trait Nary {
     fn interpret(&self);
@@ -22,6 +22,11 @@ pub(crate) enum Expr {
         name: Token,
         value: WrappedExpr,
     },
+    Logical {
+        left: WrappedExpr,
+        operator: Token,
+        right: WrappedExpr,
+    },
     Unary {
         operator: Token,
         right: WrappedExpr,
@@ -42,6 +47,18 @@ impl Display for Expr {
             Expr::Literal { value } => write!(f, "{value}"),
             Expr::Variable { name } => write!(f, "{name}"),
             Expr::Assign { name, value } => write!(f, "{name} = {value}"),
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                let op = match operator.token_type() {
+                    TokenType::Or => "or",
+                    TokenType::And => "and",
+                    _ => unreachable!(),
+                };
+                write!(f, "{left} {op} {right}")
+            }
             Expr::Unary { operator, right } => write!(f, "({} {right})", operator.lexeme()),
             Expr::Binary {
                 left,
@@ -53,6 +70,8 @@ impl Display for Expr {
     }
 }
 
+type WrappedStmt = Box<Stmt>;
+
 #[derive(Debug)]
 pub(crate) enum Stmt {
     Block {
@@ -60,6 +79,11 @@ pub(crate) enum Stmt {
     },
     Expression {
         expression: WrappedExpr,
+    },
+    If {
+        condition: Expr,
+        then_branch: WrappedStmt,
+        else_branch: Option<WrappedStmt>,
     },
     Print {
         expression: WrappedExpr,
@@ -83,6 +107,17 @@ impl Display for Stmt {
                     .join("  ")
             ),
             Stmt::Expression { expression } => write!(f, "{expression}"),
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                write!(f, "if ({condition}) {then_branch}")?;
+                if let Some(else_branch) = else_branch {
+                    write!(f, " else {else_branch}")?;
+                };
+                Ok(())
+            }
             Stmt::Print { expression } => write!(f, "print {expression}"),
             Stmt::Var {
                 name,

@@ -1,0 +1,4 @@
+if (true)  if (true)  print "tt"; else print "tt"; // This one,
+if (true)  if (false) print "tf"; else print "tf"; // and this one.
+if (false) if (true)  print "ft"; else print "ft";
+if (false) if (false) print "ff"; else print "ff";

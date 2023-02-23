@@ -9,16 +9,13 @@ type Object = Literal;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Environment {
-    /// Reference to the [`Environment`] that encloses this one.
-    enclosing: Option<Rc<Self>>,
     values: HashMap<String, Object>,
 }
 
 impl Environment {
-    pub(crate) fn new(enclosing: Option<Rc<Environment>>) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             values: HashMap::new(),
-            enclosing,
         }
     }
 }
@@ -34,15 +31,20 @@ impl Environment {
     ///
     /// This function will return an error if the variable is not found.
     pub(crate) fn get(&self, name: Token) -> Result<&Object, LoxError> {
+        // let lexeme = name.lexeme().to_owned();
+        //
+        // match &self.enclosing {
+        //     // If there is no enclosing environment, get the variable name from this environment.
+        //     None => self.values.get(&lexeme),
+        //     // Otherwise get it from the enclosing environment.
+        //     Some(enclosing) => return enclosing.get(name),
+        // }
+        // .ok_or(LoxError::from_token(
+        //     name,
+        //     format!("Undefined variable '{lexeme}'."),
+        // ))
         let lexeme = name.lexeme().to_owned();
-
-        match &self.enclosing {
-            // If there is no enclosing environment, get the variable name from this environment.
-            None => self.values.get(&lexeme),
-            // Otherwise get it from the enclosing environment.
-            Some(enclosing) => return enclosing.get(name),
-        }
-        .ok_or(LoxError::from_token(
+        self.values.get(&lexeme).ok_or(LoxError::from_token(
             name,
             format!("Undefined variable '{lexeme}'."),
         ))

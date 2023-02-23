@@ -1,0 +1,6 @@
+print "hi" or 2; // "hi"
+print "hi" and 2; // 2
+print nil or "yes"; // "yes"
+print false or "yes"; // "yes"
+print false and "yes"; // false
+print true and "yes"; // "yes"
