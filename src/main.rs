@@ -46,12 +46,12 @@ impl LoxError {
     fn from_token(token: &Token, message: String) -> Self {
         match token.token_type() {
             TokenType::Eof => {
-                Self::with_place(token.line(), token.col(), " at end".to_string(), message)
+                Self::with_place(token.line(), token.col(), "at end".to_string(), message)
             }
             _ => Self::with_place(
                 token.line(),
                 token.col(),
-                format!(" at '{}'", token.lexeme()),
+                format!("at '{}'", token.lexeme()),
                 message,
             ),
         }
@@ -108,7 +108,7 @@ fn run_prompt() -> io::Result<()> {
             break;
         }
         match run(&line) {
-            Ok(output) => writeln!(stdout, "{output}")?,
+            Ok(output) => write!(stdout, "{output}")?,
             Err(e) => eprintln!("{e}"),
         }
         line.clear();
@@ -125,7 +125,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "run" => run_file(&args.next().unwrap())?,
             "batch" => {
                 for file in args.collect::<Vec<_>>() {
-                    eprintln!("Running '{file}'...");
+                    eprintln!("\nRunning '{file}'...");
                     run_file(&file)?
                 }
             }
