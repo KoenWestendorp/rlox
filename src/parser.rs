@@ -376,8 +376,11 @@ impl Parser {
             });
         }
 
-        let p = self.peek();
-        Err(LoxError::from_token(p, "Expect expression.".to_string()))
+        let unexpected = self.peek();
+        Err(LoxError::from_token(
+            unexpected,
+            "Expect expression.".to_string(),
+        ))
     }
 
     fn peek(&self) -> &Token {
