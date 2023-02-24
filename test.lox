@@ -8,8 +8,8 @@ var beverage = "espresso";
 print beverage;
 
 // And this :)
-var desire = "I want to touch you with a "
-var idea = " of forgiveness"
+var desire = "I want to touch you with a ";
+var idea = " of forgiveness";
 var thing = "flower";
 print thing + idea;
 var thing = "feather";
