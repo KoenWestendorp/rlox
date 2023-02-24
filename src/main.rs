@@ -59,7 +59,7 @@ impl LoxError {
         LoxError::new(
             token.line(),
             32323,
-            "Unexpected type for operator -".to_string(),
+            format!("Unexpected type of token {token}"),
         )
     }
 }

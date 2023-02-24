@@ -2,7 +2,8 @@ print "before";
 
 var n = 0;
 while (n < 10) {
-    print "inside!";
     n = n + 1;
     print n;
 }
+
+print "after";
