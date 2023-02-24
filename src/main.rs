@@ -121,11 +121,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut args = std::env::args();
     match args.len() {
         1 => run_prompt()?,
-        2 => run_file(&args.nth(1).unwrap())?,
-        _ => {
-            eprintln!("Usage: rlox [script]");
-            exit(64);
-        }
+        _ => match args.nth(1).unwrap().as_str() {
+            "run" => run_file(&args.next().unwrap())?,
+            "batch" => {
+                for file in args.collect::<Vec<_>>() {
+                    eprintln!("Running '{file}'...");
+                    run_file(&file)?
+                }
+            }
+            _ => {
+                eprintln!("Usage:");
+                eprintln!("\trlox run [script]");
+                eprintln!("\trlox batch [script] [...]");
+                eprintln!("\trlox");
+                exit(64);
+            }
+        },
     }
 
     Ok(())
