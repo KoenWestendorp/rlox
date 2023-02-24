@@ -1,11 +1,7 @@
-use crate::{
-    ast::{Expr, Stmt},
-    token::{
-        Literal, Token,
-        TokenType::{self, *},
-    },
-    LoxError,
-};
+use crate::ast::{Expr, Stmt};
+use crate::token::TokenType::{self, *};
+use crate::token::{Literal, Token};
+use crate::LoxError;
 
 /// The parser type.
 ///
@@ -180,7 +176,7 @@ impl Parser {
             }
 
             return Err(LoxError::from_token(
-                equals,
+                &equals,
                 "Invalid assignment target.".to_string(),
             ));
         }
@@ -247,7 +243,7 @@ impl Parser {
         self.consume(
             Semicolon,
             "Expect ';' after variable declaration.".to_string(),
-        );
+        )?;
 
         Ok(Stmt::Var { name, initializer })
     }
@@ -380,11 +376,8 @@ impl Parser {
             });
         }
 
-        Err(LoxError::new(
-            self.peek().line(),
-            42,
-            "Expect expression.".to_string(),
-        ))
+        let p = self.peek();
+        Err(LoxError::from_token(p, "Expect expression.".to_string()))
     }
 
     fn peek(&self) -> &Token {
@@ -441,8 +434,9 @@ impl Parser {
             return Ok(self.advance());
         }
 
-        let p = self.peek();
-        Err(LoxError::new(p.line(), 69, message))
+        // If we do not encounter the check, we have have an error on our hands.
+        let unexpected = self.peek();
+        Err(LoxError::from_token(unexpected, message))
     }
 
     fn synchronize(&mut self) {

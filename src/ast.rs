@@ -2,12 +2,6 @@ use std::fmt::Display;
 
 use crate::token::{Literal, Token, TokenType};
 
-trait Nary {
-    fn interpret(&self);
-    fn resolve(&self);
-    fn analyze(&self);
-}
-
 type WrappedExpr = Box<Expr>;
 
 #[derive(Debug, Clone)]

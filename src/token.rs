@@ -1,13 +1,12 @@
 use std::fmt::Display;
 
-use crate::LoxError;
-
 #[derive(Debug, Clone)]
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
     literal: Option<Literal>,
     line: usize,
+    col: usize,
 }
 
 impl Token {
@@ -16,12 +15,14 @@ impl Token {
         lexeme: String,
         literal: Option<Literal>,
         line: usize,
+        col: usize,
     ) -> Self {
         Self {
             token_type,
             lexeme,
             literal,
             line,
+            col,
         }
     }
 
@@ -39,6 +40,10 @@ impl Token {
 
     pub fn line(&self) -> usize {
         self.line
+    }
+
+    pub(crate) fn col(&self) -> usize {
+        self.col
     }
 }
 
@@ -85,14 +90,6 @@ impl Literal {
         }
     }
 
-    #[must_use]
-    pub(crate) fn is_nil(&self) -> bool {
-        match self {
-            Literal::Nil => true,
-            _ => false,
-        }
-    }
-
     pub(crate) fn bool(&self) -> Option<bool> {
         match self {
             Literal::Bool(b) => Some(*b),
@@ -118,10 +115,6 @@ impl Literal {
 
     pub(crate) fn is_equal(left: Literal, right: Literal) -> Self {
         Self::Bool(left == right)
-    }
-
-    pub(crate) fn operate_identifier(&self, f: impl Fn(String) -> String) -> Option<Self> {
-        self.identifier().map(|s| Self::String(f(s.clone())))
     }
 
     pub(crate) fn operate_string(&self, f: impl Fn(String) -> String) -> Option<Self> {

@@ -1,7 +1,5 @@
-use crate::{
-    token::{Literal, Token, TokenType},
-    LoxError,
-};
+use crate::token::{Literal, Token, TokenType};
+use crate::LoxError;
 
 pub(crate) struct Scanner<'s> {
     source: &'s str,
@@ -29,7 +27,7 @@ impl<'s> Scanner<'s> {
             self.scan_token()?;
         }
 
-        self.push_new_token_at_line(TokenType::Eof, "".to_string(), None, self.line);
+        self.push_new_token_at_line(TokenType::Eof, "".to_string(), None, self.line, self.col());
         Ok(self.tokens)
     }
 
@@ -120,7 +118,7 @@ impl<'s> Scanner<'s> {
 
     fn push_new_token(&mut self, token_type: TokenType, literal: Option<Literal>) {
         let text = self.source[self.start..self.current].to_owned();
-        self.push_new_token_at_line(token_type, text, literal, self.line)
+        self.push_new_token_at_line(token_type, text, literal, self.line, self.col())
     }
 
     fn push_new_token_at_line(
@@ -129,9 +127,10 @@ impl<'s> Scanner<'s> {
         lexeme: String,
         literal: Option<Literal>,
         line: usize,
+        col: usize,
     ) {
         self.tokens
-            .push(Token::new(token_type, lexeme, literal, line))
+            .push(Token::new(token_type, lexeme, literal, line, col))
     }
 
     pub(crate) fn col(&self) -> usize {

@@ -19,7 +19,7 @@ impl Interpreter {
         match expr {
             Expr::Literal { value } => Ok(value),
             // TODO: I don't know whether this is right but we'll see.
-            Expr::Variable { name } => environment.get_var(name).cloned(),
+            Expr::Variable { ref name } => environment.get_var(name).cloned(),
             Expr::Assign { name, value } => {
                 let value = self.evaluate(*value, environment)?;
                 environment.assign(name, value)
@@ -106,39 +106,39 @@ impl Interpreter {
                     // FIXME: Use a macro for these suckers?
                     TokenType::Greater => {
                         use Literal::*;
-                        return match (left, right) {
+                        match (left, right) {
                             (Number(l), Number(r)) => Some(Bool(l > r)),
                             (Bool(l), Bool(r)) => Some(Bool(l > r)),
                             (l, r) => Some(Bool(l.is_truthy() > r.is_truthy())),
                         }
-                        .ok_or(LoxError::unexpected_type(&operator));
+                        .ok_or(LoxError::unexpected_type(&operator))
                     }
                     TokenType::GreaterEqual => {
                         use Literal::*;
-                        return match (left, right) {
+                        match (left, right) {
                             (Number(l), Number(r)) => Some(Bool(l >= r)),
                             (Bool(l), Bool(r)) => Some(Bool(l >= r)),
                             (l, r) => Some(Bool(l.is_truthy() >= r.is_truthy())),
                         }
-                        .ok_or(LoxError::unexpected_type(&operator));
+                        .ok_or(LoxError::unexpected_type(&operator))
                     }
                     TokenType::Less => {
                         use Literal::*;
-                        return match (left, right) {
+                        match (left, right) {
                             (Number(l), Number(r)) => Some(Bool(l < r)),
                             (Bool(l), Bool(r)) => Some(Bool(l < r)),
                             (l, r) => Some(Bool(l.is_truthy() < r.is_truthy())),
                         }
-                        .ok_or(LoxError::unexpected_type(&operator));
+                        .ok_or(LoxError::unexpected_type(&operator))
                     }
                     TokenType::LessEqual => {
                         use Literal::*;
-                        return match (left, right) {
+                        match (left, right) {
                             (Number(l), Number(r)) => Some(Bool(l <= r)),
                             (Bool(l), Bool(r)) => Some(Bool(l <= r)),
                             (l, r) => Some(Bool(l.is_truthy() <= r.is_truthy())),
                         }
-                        .ok_or(LoxError::unexpected_type(&operator));
+                        .ok_or(LoxError::unexpected_type(&operator))
                     }
                     // This unwrap should be fine because we apply it to the result of is_equal,
                     // which is always Literal::Bool(...), so the type is always as expected.
@@ -208,7 +208,7 @@ impl Interpreter {
         statements: Vec<Stmt>,
         environment: &mut Environment,
     ) -> Result<(), LoxError> {
-        let mut block_env = Environment::from_parent(&environment);
+        let mut block_env = Environment::from_parent(environment);
         for statement in statements {
             self.execute(statement, &mut block_env)?;
         }

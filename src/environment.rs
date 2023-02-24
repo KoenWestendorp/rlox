@@ -41,7 +41,7 @@ impl Environment {
     /// # Errors
     ///
     /// This function will return an error if the variable is not found.
-    pub(crate) fn get_var(&self, name: Token) -> Result<&Object, LoxError> {
+    pub(crate) fn get_var(&self, name: &Token) -> Result<&Object, LoxError> {
         let lexeme = name.lexeme().to_owned();
         match self.fallback {
             // If there is no enclosing `fallback` environment, get the variable name from this
@@ -54,9 +54,7 @@ impl Environment {
                 value => value,
             },
         }
-        .ok_or_else(|| {
-            LoxError::from_token(name.clone(), format!("Undefined variable '{lexeme}'."))
-        })
+        .ok_or_else(|| LoxError::from_token(name, format!("Undefined variable '{lexeme}'.")))
     }
 
     /// Assign another Literal value to a variable.
@@ -80,7 +78,7 @@ impl Environment {
         }
 
         Err(LoxError::from_token(
-            name,
+            &name,
             format!("Undefined variable '{lexeme}'."),
         ))
     }
