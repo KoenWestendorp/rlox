@@ -85,11 +85,15 @@ impl Parser {
     }
 
     /// statement      → exprStmt
+    ///                | forStmt
     ///                | ifStmt
     ///                | printStmt
     ///                | whileStmt
     ///                | block ;
     fn statement(&mut self) -> Result<Stmt, LoxError> {
+        if self.match_token_type(For) {
+            return self.for_statement();
+        }
         if self.match_token_type(If) {
             return self.if_statement();
         }
@@ -106,6 +110,63 @@ impl Parser {
         }
 
         self.expression_statement()
+    }
+
+    /// forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+    ///                  expression? ";"
+    ///                  expression? ")" statement ;
+    fn for_statement(&mut self) -> Result<Stmt, LoxError> {
+        self.consume(LeftParen, "Expect '(' after for.".to_string())?;
+        let initializer = if self.match_token_type(Semicolon) {
+            None
+        } else if self.match_token_type(Var) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+        let condition = if !self.check(Semicolon) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(Semicolon, "Expect ';' after loop condition.".to_string())?;
+        let increment = if !self.check(RightParen) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(RightParen, "Expect ')' after for clauses.".to_string())?;
+
+        let mut body = self.statement()?;
+
+        if let Some(increment) = increment {
+            body = Stmt::Block {
+                statements: vec![
+                    body.clone(),
+                    Stmt::Expression {
+                        expression: increment,
+                    },
+                ],
+            }
+        }
+        let condition = if condition.is_none() {
+            Expr::Literal {
+                value: Literal::Bool(true),
+            }
+        } else {
+            condition.unwrap()
+        };
+        let mut body = Stmt::While {
+            condition,
+            body: Box::new(body),
+        };
+        if let Some(initializer) = initializer {
+            body = Stmt::Block {
+                statements: vec![initializer, body.clone()],
+            }
+        }
+
+        Ok(body)
     }
 
     /// whileStmt      → "while" "(" expression ")" statement ;

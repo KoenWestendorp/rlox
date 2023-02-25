@@ -1,9 +1,15 @@
-print "before";
+var limit = 10;
 
 var n = 0;
-while (n < 10) {
+while (n < limit) {
     n = n + 1;
     print n;
 }
 
-print "after";
+for (var a = 0; a < limit; a = a + 1) {
+    print a;
+}
+
+for (var a = 0; a < limit; a = a + 1) print a;
+
+// for (;;) print "runs foreeeeeever";
