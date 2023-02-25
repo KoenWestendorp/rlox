@@ -218,9 +218,17 @@ impl Interpreter {
     }
 
     pub(crate) fn interpret(&mut self, statements: Vec<Stmt>) -> Result<String, LoxError> {
-        let mut env = Environment::new();
+        let mut environment = Environment::new();
+        self.interpret_with_env(statements, &mut environment)
+    }
+
+    pub(crate) fn interpret_with_env(
+        &mut self,
+        statements: Vec<Stmt>,
+        environment: &mut Environment,
+    ) -> Result<String, LoxError> {
         for statement in statements {
-            self.execute(statement, &mut env)?;
+            self.execute(statement, environment)?;
         }
 
         // TODO this is wrong of course. (temp)

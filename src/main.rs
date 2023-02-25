@@ -11,6 +11,7 @@ use std::fs::read_to_string;
 use std::io::{self, stdin, stdout, BufRead, BufReader, Write};
 use std::process::exit;
 
+use environment::Environment;
 use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
@@ -89,6 +90,19 @@ fn run(source: &str) -> Result<String, LoxError> {
     Ok(evaluated)
 }
 
+fn run_with_env(source: &str, environment: &mut Environment) -> Result<String, LoxError> {
+    let scanner = Scanner::new(source);
+    let tokens = scanner.scan_tokens()?;
+
+    let parser = Parser::new(tokens);
+    let parsed = parser.parse()?;
+
+    let mut interpreter = Interpreter::new();
+    let evaluated = interpreter.interpret_with_env(parsed, environment)?;
+
+    Ok(evaluated)
+}
+
 fn run_file(path: &String) -> Result<(), Box<dyn Error>> {
     let source = read_to_string(path)?;
     run(&source)?;
@@ -99,6 +113,8 @@ fn run_prompt() -> io::Result<()> {
     let mut reader = BufReader::new(stdin().lock());
     let mut stdout = stdout().lock();
 
+    let mut env = Environment::new();
+
     let mut line = String::new();
     loop {
         print!("> ");
@@ -107,7 +123,7 @@ fn run_prompt() -> io::Result<()> {
             // EOF encountered. Bye.
             break;
         }
-        match run(&line) {
+        match run_with_env(&line, &mut env) {
             Ok(output) => write!(stdout, "{output}")?,
             Err(e) => eprintln!("{e}"),
         }
