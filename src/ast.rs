@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Arguments, Display};
 
 use crate::token::{Literal, Token, TokenType};
 
@@ -30,6 +30,11 @@ pub(crate) enum Expr {
         operator: Token,
         right: WrappedExpr,
     },
+    Call {
+        callee: WrappedExpr,
+        paren: Token,
+        arguments: Vec<Expr>,
+    },
     Grouping {
         expression: WrappedExpr,
     },
@@ -59,6 +64,15 @@ impl Display for Expr {
                 operator,
                 right,
             } => write!(f, "({left} {} {right})", operator.lexeme()),
+            Expr::Call {
+                callee, arguments, ..
+            } => {
+                let mut arguments: String = arguments.iter().map(|a| format!("{a}, ")).collect();
+                // TODO: This string manipulation is inellegant. intersperse would work nicely but
+                // it is unstable.
+                arguments.truncate(arguments.len() - 2);
+                write!(f, "{callee}({arguments})")
+            }
             Expr::Grouping { expression } => write!(f, "{expression}"),
         }
     }
@@ -73,6 +87,11 @@ pub(crate) enum Stmt {
     },
     Expression {
         expression: Expr,
+    },
+    Function {
+        name: Token,
+        params: Vec<Token>,
+        body: Vec<Stmt>,
     },
     If {
         condition: Expr,
@@ -104,6 +123,7 @@ impl Display for Stmt {
                     .collect::<Vec<_>>()
                     .join("  ")
             ),
+            Stmt::Function { name, params, body } => write!(f, "<fn {name}>", name = name.lexeme()),
             Stmt::Expression { expression } => write!(f, "{expression}"),
             Stmt::If {
                 condition,

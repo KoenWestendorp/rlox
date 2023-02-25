@@ -1,4 +1,9 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::Deref};
+
+use crate::{
+    callable::{Callable, Function},
+    environment::Environment,
+};
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -59,9 +64,10 @@ impl Display for Token {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Literal {
     Identifier(String),
+    Fun(Box<Function>),
     String(String),
     Number(f64),
     Nil,
@@ -114,7 +120,17 @@ impl Literal {
     }
 
     pub(crate) fn is_equal(left: Literal, right: Literal) -> Self {
-        Self::Bool(left == right)
+        let equality = match (left, right) {
+            (Literal::Identifier(a), Literal::Identifier(b)) => a == b,
+            (Literal::Fun(a), Literal::Fun(b)) => a.name().lexeme() == b.name().lexeme(),
+            (Literal::String(a), Literal::String(b)) => a == b,
+            (Literal::Number(a), Literal::Number(b)) => a == b,
+            (Literal::Nil, Literal::Nil) => true,
+            (Literal::Bool(a), Literal::Bool(b)) => a == b,
+            _ => false,
+        };
+
+        Self::Bool(equality)
     }
 
     pub(crate) fn operate_string(&self, f: impl Fn(String) -> String) -> Option<Self> {
@@ -142,12 +158,23 @@ impl Literal {
         let right = right.number()?;
         left.operate_number(|n| f(n, right))
     }
+
+    pub(crate) fn callable(&self) -> Option<impl Callable> {
+        match self {
+            Self::Fun(fun) => Some(*fun.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Literal::Identifier(i) => write!(f, "<{i}>"),
+            Literal::Fun(fun) => {
+                let name = fun.deref().name().lexeme();
+                write!(f, "<fn {name}>")
+            }
             Literal::String(s) => write!(f, "{s}"),
             Literal::Number(n) => write!(f, "{n}"),
             Literal::Nil => write!(f, "nil"),

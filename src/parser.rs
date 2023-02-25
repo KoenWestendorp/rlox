@@ -10,7 +10,8 @@ use crate::LoxError;
 /// ```
 /// program        → declaration* EOF ;
 ///
-/// declaration    → varDecl
+/// declaration    → funDecl
+///                | varDecl
 ///                | statement ;
 ///
 /// statement      → exprStmt
@@ -19,6 +20,10 @@ use crate::LoxError;
 ///                | printStmt
 ///                | whileStmt
 ///                | block ;
+///
+/// funDecl        → "fun" function ;
+/// function       → IDENTIFIER "(" parameters? ")" block ;
+/// parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 ///
 /// forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
 ///                  expression? ";"
@@ -46,8 +51,9 @@ use crate::LoxError;
 /// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 /// term           → factor ( ( "-" | "+" ) factor )* ;
 /// factor         → unary ( ( "/" | "*" ) unary )* ;
-/// unary          → ( "!" | "-" ) unary
-///                | primary ;
+/// unary          → ( "!" | "-" ) unary | call ;
+/// call           → primary ( "(" arguments? ")" )* ;
+/// arguments      → expression ( "," expression )* ;
 /// primary        → "true" | "false" | "nil"
 ///                | NUMBER | STRING
 ///                | "(" expression ")"
@@ -68,9 +74,13 @@ impl Parser {
         self.assignment()
     }
 
-    /// declaration    → varDecl
+    /// declaration    → funDecl
+    ///                | varDecl
     ///                | statement ;
     fn declaration(&mut self) -> Result<Stmt, LoxError> {
+        if self.match_token_type(Fun) {
+            return self.function("function");
+        }
         let res = if self.match_token_type(Var) {
             self.var_declaration()
         } else {
@@ -206,6 +216,39 @@ impl Parser {
         self.consume(Semicolon, "Expect ';' after expression.".to_string())?;
 
         Ok(Stmt::Expression { expression: value })
+    }
+
+    fn function(&mut self, kind: &str) -> Result<Stmt, LoxError> {
+        let name = self
+            .consume(Identifier, format!("Expect {kind} name."))?
+            .clone();
+        self.consume(LeftParen, format!("Expect '(' after {kind} name."))?;
+        let mut params = Vec::new();
+        if !self.check(RightParen) {
+            loop {
+                if params.len() >= 255 {
+                    return Err(LoxError::from_token(
+                        self.peek(),
+                        "Can't have more than 255 parameters.".to_string(),
+                    ));
+                }
+
+                params.push(
+                    self.consume(Identifier, "Expect parameter name.".to_string())?
+                        .clone(),
+                );
+
+                if !self.match_token_type(Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(RightParen, "Expect ')' after parameters.".to_string())?;
+
+        self.consume(LeftBrace, format!("Expect '{{' before {kind} body."))?;
+        let body = self.block()?;
+
+        Ok(Stmt::Function { name, params, body })
     }
 
     /// block          → "{" declaration* "}" ;
@@ -377,8 +420,7 @@ impl Parser {
         Ok(expr)
     }
 
-    /// unary          → ( "!" | "-" ) unary
-    ///                | primary ;
+    /// unary          → ( "!" | "-" ) unary | call ;
     fn unary(&mut self) -> Result<Expr, LoxError> {
         if self.match_(&[Bang, Minus]) {
             let operator = self.previous().clone();
@@ -389,7 +431,54 @@ impl Parser {
             });
         }
 
-        self.primary()
+        self.call()
+    }
+
+    /// call           → primary ( "(" arguments? ")" )* ;
+    fn call(&mut self) -> Result<Expr, LoxError> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.match_token_type(LeftParen) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, LoxError> {
+        let arguments = self.arguments()?;
+        let paren = self.consume(RightParen, "Expect ')' after arguments.".to_string())?;
+
+        Ok(Expr::Call {
+            callee: Box::new(callee),
+            paren: paren.clone(),
+            arguments,
+        })
+    }
+
+    /// arguments      → expression ( "," expression )* ;
+    fn arguments(&mut self) -> Result<Vec<Expr>, LoxError> {
+        let mut arguments = Vec::new();
+        if !self.check(RightParen) {
+            loop {
+                if arguments.len() >= 255 {
+                    return Err(LoxError::from_token(
+                        self.peek(),
+                        "Can't have more than 255 arguments.".to_string(),
+                    ));
+                }
+                arguments.push(self.expression()?);
+                if !self.match_token_type(Comma) {
+                    break;
+                }
+            }
+        }
+
+        Ok(arguments)
     }
 
     /// primary        → "true" | "false" | "nil"

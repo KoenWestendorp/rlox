@@ -1,17 +1,19 @@
 use crate::ast::{Expr, Stmt};
+use crate::callable::{Callable, Function};
 use crate::environment::Environment;
 use crate::token::{Literal, TokenType};
 use crate::LoxError;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Interpreter {
+    globals: Box<Environment>,
     // environment: Environment,
 }
 
 impl Interpreter {
     pub(crate) fn new() -> Self {
         Self {
-            // environment: Environment::new(),
+            globals: Box::new(Environment::new()), // environment: Environment::new(),
         }
     }
 
@@ -149,6 +151,36 @@ impl Interpreter {
                     _ => todo!(),
                 }
             }
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => {
+                let callee = self.evaluate(*callee, environment)?;
+                let mut argument_literals = Vec::new();
+                for argument in arguments {
+                    argument_literals.push(self.evaluate(argument, environment)?);
+                }
+                let arguments = argument_literals;
+
+                let function = callee.callable().ok_or(LoxError::from_token(
+                    &paren,
+                    "Can only call functions and classes.".to_string(),
+                ))?;
+
+                if arguments.len() != function.arity() {
+                    return Err(LoxError::from_token(
+                        &paren,
+                        format!(
+                            "Expected {arity} + arguments but got {len}.",
+                            arity = function.arity(),
+                            len = arguments.len()
+                        ),
+                    ));
+                }
+
+                function.call(self, environment, arguments)
+            }
             Expr::Grouping { expression } => self.evaluate(*expression, environment),
         }
     }
@@ -164,6 +196,15 @@ impl Interpreter {
                 Ok(Literal::Nil)
             }
             Stmt::Expression { expression } => self.evaluate(expression, environment),
+            function @ Stmt::Function { .. } => {
+                let function = Function::new(function).unwrap();
+                environment.define(
+                    function.name().lexeme().to_string(),
+                    Literal::Fun(Box::new(function)),
+                );
+
+                Ok(Literal::Nil)
+            }
             Stmt::If {
                 condition,
                 then_branch,
@@ -203,7 +244,7 @@ impl Interpreter {
         }
     }
 
-    fn execute_block(
+    pub(crate) fn execute_block(
         &mut self,
         statements: Vec<Stmt>,
         environment: &mut Environment,
