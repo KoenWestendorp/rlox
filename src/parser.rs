@@ -3,6 +3,8 @@ use crate::token::TokenType::{self, *};
 use crate::token::{Literal, Token};
 use crate::LoxError;
 
+type ReturnOrError = Result<Stmt, LoxError>;
+
 /// The parser type.
 ///
 /// Implements a parser according to the following expression grammar:
@@ -18,6 +20,7 @@ use crate::LoxError;
 ///                | forStmt
 ///                | ifStmt
 ///                | printStmt
+///                | returnStmt
 ///                | whileStmt
 ///                | block ;
 ///
@@ -28,6 +31,8 @@ use crate::LoxError;
 /// forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
 ///                  expression? ";"
 ///                  expression? ")" statement ;
+///
+/// returnStmt     → "return" expression? ";" ;
 ///
 /// whileStmt      → "while" "(" expression ")" statement ;
 ///
@@ -74,9 +79,13 @@ impl Parser {
         self.assignment()
     }
 
-    /// declaration    → funDecl
-    ///                | varDecl
-    ///                | statement ;
+    /// statement      → exprStmt
+    ///                | forStmt
+    ///                | ifStmt
+    ///                | printStmt
+    ///                | returnStmt
+    ///                | whileStmt
+    ///                | block ;
     fn declaration(&mut self) -> Result<Stmt, LoxError> {
         if self.match_token_type(Fun) {
             return self.function("function");
@@ -109,6 +118,9 @@ impl Parser {
         }
         if self.match_token_type(Print) {
             return self.print_statement();
+        }
+        if self.match_token_type(Return) {
+            return self.return_statement();
         }
         if self.match_token_type(While) {
             return self.while_statement();
@@ -330,6 +342,21 @@ impl Parser {
         self.consume(Semicolon, "Expect ';' after value.".to_string())?;
 
         Ok(Stmt::Print { expression: value })
+    }
+
+    /// returnStmt     → "return" expression? ";" ;
+    fn return_statement(&mut self) -> ReturnOrError {
+        let keyword = self.previous().clone();
+        // Distinguish between `return;` and `return val;`
+        let value = if self.check(Semicolon) {
+            None
+        } else {
+            Some(self.expression()?)
+        };
+
+        self.consume(Semicolon, "Expect ';' after return value.".to_string())?;
+
+        Ok(Stmt::Return { keyword, value })
     }
 
     /// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;

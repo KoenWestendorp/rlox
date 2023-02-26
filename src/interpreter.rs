@@ -7,6 +7,8 @@ use crate::LoxError;
 #[derive(Debug, Clone)]
 pub(crate) struct Interpreter {
     globals: Box<Environment>,
+    backtrace: Vec<Expr>,
+    return_value: Option<Literal>,
     // environment: Environment,
 }
 
@@ -14,6 +16,8 @@ impl Interpreter {
     pub(crate) fn new() -> Self {
         Self {
             globals: Box::new(Environment::new()), // environment: Environment::new(),
+            backtrace: Vec::new(),
+            return_value: None,
         }
     }
 
@@ -179,7 +183,15 @@ impl Interpreter {
                     ));
                 }
 
-                function.call(self, environment, arguments)
+                match function.call(self, environment, arguments) {
+                    Ok(v) => Ok(v),
+                    Err(e) if e.message == "RETURN".to_string() => {
+                        let return_value = self.return_value.clone().unwrap();
+                        self.return_value = None;
+                        Ok(return_value)
+                    }
+                    Err(e) => Err(e),
+                }
             }
             Expr::Grouping { expression } => self.evaluate(*expression, environment),
         }
@@ -224,6 +236,14 @@ impl Interpreter {
             Stmt::Print { expression } => {
                 println!("{}", self.evaluate(expression, environment)?);
                 Ok(Literal::Nil)
+            }
+            Stmt::Return { keyword, value } => {
+                let value = match value {
+                    Some(val) => self.evaluate(val, environment)?,
+                    None => Literal::Nil,
+                };
+                self.return_value = Some(value.clone());
+                Err(LoxError::return_unwind(&keyword))
             }
             Stmt::Var { name, initializer } => {
                 let value = if let Some(init) = initializer {

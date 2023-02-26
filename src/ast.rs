@@ -101,6 +101,10 @@ pub(crate) enum Stmt {
     Print {
         expression: Expr,
     },
+    Return {
+        keyword: Token,
+        value: Option<Expr>,
+    },
     Var {
         name: Token,
         initializer: Option<Expr>,
@@ -137,6 +141,13 @@ impl Display for Stmt {
                 Ok(())
             }
             Stmt::Print { expression } => write!(f, "print {expression}"),
+            Stmt::Return { value, .. } => {
+                if let Some(value) = value {
+                    write!(f, "return {value}")
+                } else {
+                    write!(f, "return")
+                }
+            }
             Stmt::Var {
                 name,
                 initializer: Some(init),

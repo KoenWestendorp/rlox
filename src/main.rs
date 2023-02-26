@@ -62,6 +62,10 @@ impl LoxError {
     pub(crate) fn unexpected_type(token: &Token) -> LoxError {
         LoxError::from_token(token, format!("Unexpected type of token {token}"))
     }
+
+    pub(crate) fn return_unwind(keyword: &Token) -> LoxError {
+        LoxError::from_token(keyword, "RETURN".to_string())
+    }
 }
 
 impl Error for LoxError {}

@@ -1,5 +1,41 @@
+// Multiple parameters.
 fun sayHi(first, last) {
     print "Hi, " + first + " " + last + "!";
 }
 
 sayHi("Dear", "Reader");
+
+// No return in function body returns Nil.
+fun procedure() {
+  print "don't return anything";
+}
+
+var result = procedure();
+print result; // Nil
+
+// Counting with a conditional early return.
+fun count(n) {
+  while (n < 100) {
+    if (n == 3) return n; // <-- early return
+    print n;
+    n = n + 1;
+  }
+}
+
+print count(1);
+
+// Nested functions?
+fun outer(val) {
+    print "outer: " + val;
+    fun inner(w) {
+        print "inner: " + w;
+        return w + ": julius";
+    }
+    return inner(val + " from outer space");
+}
+
+print outer("kat"); 
+// should print:
+// outer: kat
+// inner: kat from outer space
+// kat from outer space: julius
